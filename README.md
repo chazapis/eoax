@@ -53,6 +53,12 @@ The following have been tested on Ubuntu 14.04.3 LTS and 15.10 and may require c
   # depmod
   ```
 
+* Copy the new `Module.symvers` for AX.25 over to eoax sources, to get the correct symbol versions:
+
+  ```
+  # cp Module.symvers ~/eoax/drivers/net/hamradio/
+  ```
+
 * Compile and install the eoax module:
 
   ```
