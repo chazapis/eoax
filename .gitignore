@@ -1,0 +1,6 @@
+drivers/net/hamradio/.*
+drivers/net/hamradio/Module.symvers
+drivers/net/hamradio/eoax.ko
+drivers/net/hamradio/eoax.mod.*
+drivers/net/hamradio/eoax.o
+drivers/net/hamradio/modules.order
