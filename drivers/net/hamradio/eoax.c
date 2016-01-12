@@ -75,26 +75,26 @@ struct eoaxdev {
 
 static LIST_HEAD(eoax_devices);
 
-// /*
-//  * bpqether network devices are paired with ethernet devices below them, so
-//  * form a special "super class" of normal ethernet devices; split their locks
-//  * off into a separate class since they always nest.
-//  */
-// static struct lock_class_key bpq_netdev_xmit_lock_key;
-// static struct lock_class_key bpq_netdev_addr_lock_key;
+/*
+ * eoax network devices are paired with AX.25 devices below them, so
+ * form a special "super class" of normal AX.25 devices; split their locks
+ * off into a separate class since they always nest.
+ */
+static struct lock_class_key eoax_netdev_xmit_lock_key;
+static struct lock_class_key eoax_netdev_addr_lock_key;
 
-// static void bpq_set_lockdep_class_one(struct net_device *dev,
-// 				      struct netdev_queue *txq,
-// 				      void *_unused)
-// {
-// 	lockdep_set_class(&txq->_xmit_lock, &bpq_netdev_xmit_lock_key);
-// }
+static void eoax_set_lockdep_class_one(struct net_device *dev,
+				       struct netdev_queue *txq,
+				       void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &eoax_netdev_xmit_lock_key);
+}
 
-// static void bpq_set_lockdep_class(struct net_device *dev)
-// {
-// 	lockdep_set_class(&dev->addr_list_lock, &bpq_netdev_addr_lock_key);
-// 	netdev_for_each_tx_queue(dev, bpq_set_lockdep_class_one, NULL);
-// }
+static void eoax_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &eoax_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, eoax_set_lockdep_class_one, NULL);
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -363,7 +363,7 @@ static int eoax_new_device(struct net_device *axdev)
 	err = register_netdevice(ndev);
 	if (err)
 		goto error;
-	// eoax_set_lockdep_class(ndev);
+	eoax_set_lockdep_class(ndev);
 
 	/* List protected by RTNL. */
 	list_add_rcu(&eoax->eoax_list, &eoax_devices);
