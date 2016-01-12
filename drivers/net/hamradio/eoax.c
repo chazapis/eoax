@@ -19,36 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/in.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/net.h>
-#include <linux/slab.h>
-#include <net/ax25.h>
-#include <linux/inet.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/if_arp.h>
-#include <linux/skbuff.h>
-#include <net/sock.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/notifier.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/rtnetlink.h>
-
-#include <net/ip.h>
+#include <linux/etherdevice.h>
+#include <net/ax25.h>
 #include <net/arp.h>
-#include <net/net_namespace.h>
 
 #define AX25_P_EOAX 0xD0
 
