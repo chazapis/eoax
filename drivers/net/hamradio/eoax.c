@@ -52,6 +52,8 @@
 
 #define AX25_P_EOAX 0xD0
 
+// #define EOAX_DUMP_SKB
+
 static int eoax_rcv(struct sk_buff *, struct net_device *);
 static int eoax_device_event(struct notifier_block *, unsigned long, void *);
 
@@ -94,8 +96,7 @@ static LIST_HEAD(eoax_devices);
 // 	netdev_for_each_tx_queue(dev, bpq_set_lockdep_class_one, NULL);
 // }
 
-// /* ------------------------------------------------------------------------ */
-
+/* ------------------------------------------------------------------------ */
 
 /*
  *	Get the AX.25 device for an eoax device.
@@ -123,13 +124,12 @@ static inline struct net_device *eoax_get_ether_dev(struct net_device *dev)
 
 /* ------------------------------------------------------------------------ */
 
-
+#ifdef EOAX_DUMP_SKB
 static void dump_skb(struct sk_buff *skb)
 {
 	unsigned char *ptr;
 	int i;
 
-	// printk(KERN_INFO "eoax: skb->head = %p, skb->data = %p, skb->tail = %d\n", skb->head, skb->data, skb->tail);
 	printk(KERN_INFO "eoax: skb->len = %d\n", skb->len);
 	ptr = skb->data;
 	for (i = 0; i < skb->len; i++) {
@@ -144,6 +144,7 @@ static void dump_skb(struct sk_buff *skb)
 	if (i % 16 != 0)
 		printk("\n");
 }
+#endif
 
 static void ax25_address_to_eth(unsigned char *ax25_addr,
 				unsigned char *eth_addr)
@@ -177,12 +178,10 @@ static void eth_address_to_ax25(unsigned char *eth_addr,
  */
 static int eoax_rcv(struct sk_buff *skb, struct net_device *dev)
 {
-	// char * ptr;
-	// struct ethhdr *eth;
-	// struct eoaxdev *eoax;
-
+#ifdef EOAX_DUMP_SKB
 	printk(KERN_INFO "eoax: start rcv\n");
 	dump_skb(skb);
+#endif
 
 	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
@@ -199,33 +198,18 @@ static int eoax_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (dev == NULL || !netif_running(dev)) 
 		goto drop_unlock;
 
-	/*
-	 * if we want to accept frames from just one ethernet device
-	 * we check the source address of the sender.
-	 */
-
-	// eoax = netdev_priv(dev);
-
-	// eth = eth_hdr(skb);
-
-	// if (!(eoax->acpt_addr[0] & 0x01) &&
-	//     !ether_addr_equal(eth->h_source, eoax->acpt_addr))
-	// 	goto drop_unlock;
-
-	// if (skb_cow(skb, sizeof(struct ethhdr)))
-	// 	goto drop_unlock;
-
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
-
-	// ptr = skb_push(skb, 1);
-	// *ptr = 0;
 
 	// skb_reset_transport_header(skb);
 	// skb_reset_network_header(skb);
 	skb->protocol = eth_type_trans(skb, dev);
+
+#ifdef EOAX_DUMP_SKB
 	printk(KERN_INFO "eoax: end rcv\n");
 	dump_skb(skb);
+#endif
+
 	netif_rx(skb);
 unlock:
 
@@ -246,19 +230,20 @@ drop:
  */
 static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	unsigned char *ptr;
 	struct eoaxdev *eoax;
 	struct net_device *orig_dev;
 
 	struct ethhdr *eth;
 	unsigned char dest[AX25_ADDR_LEN];
 
+#ifdef EOAX_DUMP_SKB
 	printk(KERN_INFO "eoax: start xmit\n");
 	dump_skb(skb);
+#endif
 
 	/*
 	 * Just to be *really* sure not to send anything if the interface
-	 * is down, the ethernet device may have gone.
+	 * is down, the AX.25 device may have gone.
 	 */
 	if (!netif_running(dev)) {
 		kfree_skb(skb);
@@ -270,9 +255,9 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 	/*
 	 * We're about to mess with the skb which may still shared with the
 	 * generic networking code so unshare and ensure it's got enough
-	 * space for the BPQ headers.
+	 * space for the eoax headers.
 	 */
-	if (skb_cow(skb, AX25_HEADER_LEN + 2)) {
+	if (skb_cow(skb, AX25_HEADER_LEN)) {
 		if (net_ratelimit())
 			pr_err("eoax: out of memory\n");
 		kfree_skb(skb);
@@ -295,7 +280,7 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(ether_addr_equal_64bits(eth->h_dest, orig_dev->broadcast))) {
 		skb->pkt_type = PACKET_BROADCAST;
 		memcpy(dest, ax25_bcast.ax25_call, AX25_ADDR_LEN);
-	// } else if (unlikely(!ether_addr_equal_64bits(eth->h_dest, dev->dev_addr))) {
+	// } else if (unlikely(!ether_addr_equal_64bits(eth->h_dest, orig_dev->dev_addr))) {
 	// 	skb->pkt_type = PACKET_OTHERHOST;
 	} else {
 		skb->pkt_type = PACKET_HOST;
@@ -303,16 +288,15 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth->h_proto;
-	// skb->protocol = eth_type_trans(skb, dev);	
-	// printk(KERN_INFO "eoax: after eth_type_trans\n");
-	// dump_skb(skb);
 	// skb_reset_network_header(skb);
 	dev_hard_header(skb, dev, AX25_P_EOAX, dest, NULL, 0);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
   
+#ifdef EOAX_DUMP_SKB
 	printk(KERN_INFO "eoax: end xmit\n");
 	dump_skb(skb);
+#endif
 
 	dev_queue_xmit(skb);
 	netif_wake_queue(dev);
@@ -333,7 +317,6 @@ static int eoax_close(struct net_device *dev)
 
 /* ------------------------------------------------------------------------ */
 
-
 static const struct net_device_ops eoax_netdev_ops = {
 	.ndo_open	     = eoax_open,
 	.ndo_stop	     = eoax_close,
@@ -344,16 +327,12 @@ static void eoax_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
-	// dev->header_ops		= &eth_header_ops;
-	// dev->type		= ARPHRD_ETHER;
-	dev->hard_header_len	= ETH_HLEN + AX25_HEADER_LEN + 2;
+	dev->hard_header_len	= ETH_HLEN + AX25_HEADER_LEN;
 	dev->mtu		= AX25_DEF_PACLEN;
-	// dev->addr_len		= ETH_ALEN;
 	dev->tx_queue_len	= 0;
 	dev->flags		= IFF_BROADCAST;
 
 	eth_broadcast_addr(dev->broadcast);
-	// eth_zero_addr(dev->dev_addr);
 
 	dev->netdev_ops		= &eoax_netdev_ops;
 	dev->destructor		= free_netdev;
@@ -377,7 +356,8 @@ static int eoax_new_device(struct net_device *axdev)
 	eoax->axdev = axdev;
 	eoax->ethdev = ndev;
 
-	ndev->mtu = axdev->mtu - (ETH_HLEN + 2);
+	/* Complete device setup. */
+	ndev->mtu = axdev->mtu - ETH_HLEN;
 	ax25_address_to_eth(axdev->dev_addr, ndev->dev_addr);
 
 	err = register_netdevice(ndev);
@@ -385,14 +365,14 @@ static int eoax_new_device(struct net_device *axdev)
 		goto error;
 	// eoax_set_lockdep_class(ndev);
 
-	/* List protected by RTNL */
+	/* List protected by RTNL. */
 	list_add_rcu(&eoax->eoax_list, &eoax_devices);
 
 	printk(KERN_INFO "eoax: registered new device %s over %s\n", eoax->ethdev->name, eoax->axdev->name);
 
 	return 0;
 
- error:
+error:
 	dev_put(axdev);
 	free_netdev(ndev);
 	return err;
@@ -451,7 +431,6 @@ static int eoax_device_event(struct notifier_block *this,
 
 	return NOTIFY_DONE;
 }
-
 
 /* ------------------------------------------------------------------------ */
 
