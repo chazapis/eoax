@@ -177,7 +177,6 @@ static void eth_address_to_ax25(unsigned char *eth_addr,
  */
 static int eoax_rcv(struct sk_buff *skb, struct net_device *dev)
 {
-	int len;
 	// char * ptr;
 	// struct ethhdr *eth;
 	// struct eoaxdev *eoax;
@@ -216,15 +215,8 @@ static int eoax_rcv(struct sk_buff *skb, struct net_device *dev)
 	// if (skb_cow(skb, sizeof(struct ethhdr)))
 	// 	goto drop_unlock;
 
-	len = skb->data[0] + skb->data[1] * 256 - 5;
-
-	printk(KERN_INFO "eoax: trimming packet from %d to %d\n", skb->len, len);
-
-	skb_pull(skb, 2);	/* Remove the length bytes */
-	skb_trim(skb, len);	/* Set the length of the data */
-
 	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += len;
+	dev->stats.rx_bytes += skb->len;
 
 	// ptr = skb_push(skb, 1);
 	// *ptr = 0;
@@ -257,7 +249,6 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned char *ptr;
 	struct eoaxdev *eoax;
 	struct net_device *orig_dev;
-	int size;
 
 	struct ethhdr *eth;
 	unsigned char dest[AX25_ADDR_LEN];
@@ -276,8 +267,6 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	eth = eth_hdr(skb);
 
-	size = skb->len;
-
 	/*
 	 * We're about to mess with the skb which may still shared with the
 	 * generic networking code so unshare and ensure it's got enough
@@ -290,14 +279,6 @@ static netdev_tx_t eoax_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		return NETDEV_TX_OK;
 	}
-
-	ptr = skb_push(skb, 2);			/* Make space for length */
-
-	*ptr++ = (size + 5) % 256;
-	*ptr++ = (size + 5) / 256;
-
-	// printk(KERN_INFO "eoax: adding len 0x%2.2x 0x%2.2x\n", (size + 5) % 256, (size + 5) / 256);
-	// dump_skb(skb);
 
 	eoax = netdev_priv(dev);
 
