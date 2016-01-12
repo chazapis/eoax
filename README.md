@@ -66,6 +66,7 @@ I assume you have cloned this repository in `~/eoax`.
   ```
   # cd ~/eoax
   # make
+  # make install
   # depmod
   ```
 
