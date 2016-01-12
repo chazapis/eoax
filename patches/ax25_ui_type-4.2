@@ -1,0 +1,140 @@
+diff --git include/net/ax25.h include/net/ax25.h
+index e602f81..e68cde3 100644
+--- include/net/ax25.h
++++ include/net/ax25.h
+@@ -356,6 +356,7 @@ struct ax25_protocol {
+ 	struct ax25_protocol *next;
+ 	unsigned int pid;
+ 	int (*func)(struct sk_buff *, ax25_cb *);
++	int (*ui_func)(struct sk_buff *, struct net_device *);
+ };
+ 
+ void ax25_register_pid(struct ax25_protocol *ap);
+@@ -371,6 +372,7 @@ void ax25_linkfail_release(struct ax25_linkfail *lf);
+ int __must_check ax25_listen_register(ax25_address *, struct net_device *);
+ void ax25_listen_release(ax25_address *, struct net_device *);
+ int(*ax25_protocol_function(unsigned int))(struct sk_buff *, ax25_cb *);
++int(*ax25_protocol_ui_function(unsigned int))(struct sk_buff *, struct net_device *);
+ int ax25_listen_mine(ax25_address *, struct net_device *);
+ void ax25_link_failed(ax25_cb *, int);
+ int ax25_protocol_is_registered(unsigned int);
+diff --git net/ax25/ax25_iface.c net/ax25/ax25_iface.c
+index 7f16e8a..0d25692 100644
+--- net/ax25/ax25_iface.c
++++ net/ax25/ax25_iface.c
+@@ -158,20 +158,37 @@ void ax25_listen_release(ax25_address *callsign, struct net_device *dev)
+ 
+ EXPORT_SYMBOL(ax25_listen_release);
+ 
+-int (*ax25_protocol_function(unsigned int pid))(struct sk_buff *, ax25_cb *)
++struct ax25_protocol *ax25_get_protocol(unsigned int pid)
+ {
+-	int (*res)(struct sk_buff *, ax25_cb *) = NULL;
+ 	struct ax25_protocol *protocol;
+ 
+ 	read_lock(&protocol_list_lock);
+ 	for (protocol = protocol_list; protocol != NULL; protocol = protocol->next)
+-		if (protocol->pid == pid) {
+-			res = protocol->func;
++		if (protocol->pid == pid)
+ 			break;
+-		}
+ 	read_unlock(&protocol_list_lock);
+ 
+-	return res;
++	return protocol;
++}
++
++int (*ax25_protocol_function(unsigned int pid))(struct sk_buff *, ax25_cb *)
++{
++	struct ax25_protocol *protocol;
++
++	if ((protocol = ax25_get_protocol(pid)) != NULL)
++		return protocol->func;
++
++	return NULL;
++}
++
++int (*ax25_protocol_ui_function(unsigned int pid))(struct sk_buff *, struct net_device *)
++{
++	struct ax25_protocol *protocol;
++
++	if ((protocol = ax25_get_protocol(pid)) != NULL)
++		return protocol->ui_func;
++
++	return NULL;
+ }
+ 
+ int ax25_listen_mine(ax25_address *callsign, struct net_device *dev)
+diff --git net/ax25/ax25_in.c net/ax25/ax25_in.c
+index bb5a0e4..8ef444b 100644
+--- net/ax25/ax25_in.c
++++ net/ax25/ax25_in.c
+@@ -192,6 +192,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
+ 	ax25_digi dp, reverse_dp;
+ 	ax25_cb *ax25;
+ 	ax25_dev *ax25_dev;
++	int (*ui_func)(struct sk_buff *, struct net_device *);
+ 
+ 	/*
+ 	 *	Process the AX.25/LAPB frame.
+@@ -282,7 +283,12 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
+ 			break;
+ 
+ 		default:
+-			kfree_skb(skb);	/* Will scan SOCK_AX25 RAW sockets */
++			if ((ui_func = ax25_protocol_ui_function(skb->data[1])) != NULL) {
++				skb_pull(skb, 2);
++				return (*ui_func)(skb, dev);
++			} else {
++				kfree_skb(skb);	/* Will scan SOCK_AX25 RAW sockets */
++			}
+ 			break;
+ 		}
+ 
+diff --git net/ax25/ax25_ip.c net/ax25/ax25_ip.c
+index b563a3f..96a8bde 100644
+--- net/ax25/ax25_ip.c
++++ net/ax25/ax25_ip.c
+@@ -88,8 +88,7 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+ 		*buff++ = AX25_P_ARP;
+ 		break;
+ 	default:
+-		printk(KERN_ERR "AX.25: ax25_hard_header - wrong protocol type 0x%2.2x\n", type);
+-		*buff++ = 0;
++		*buff++ = type;
+ 		break;
+ 	}
+ 
+diff --git net/netrom/af_netrom.c net/netrom/af_netrom.c
+index ed212ff..30c74e1 100644
+--- net/netrom/af_netrom.c
++++ net/netrom/af_netrom.c
+@@ -1385,8 +1385,9 @@ static struct notifier_block nr_dev_notifier = {
+ static struct net_device **dev_nr;
+ 
+ static struct ax25_protocol nr_pid = {
+-	.pid	= AX25_P_NETROM,
+-	.func	= nr_route_frame
++	.pid		= AX25_P_NETROM,
++	.func		= nr_route_frame,
++	.ui_func	= NULL
+ };
+ 
+ static struct ax25_linkfail nr_linkfail_notifier = {
+diff --git net/rose/af_rose.c net/rose/af_rose.c
+index 129d357..c4fe6a9 100644
+--- net/rose/af_rose.c
++++ net/rose/af_rose.c
+@@ -1501,8 +1501,9 @@ static struct notifier_block rose_dev_notifier = {
+ static struct net_device **dev_rose;
+ 
+ static struct ax25_protocol rose_pid = {
+-	.pid	= AX25_P_ROSE,
+-	.func	= rose_route_frame
++	.pid		= AX25_P_ROSE,
++	.func		= rose_route_frame,
++	.ui_func	= NULL
+ };
+ 
+ static struct ax25_linkfail rose_linkfail_notifier = {
