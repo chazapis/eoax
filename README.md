@@ -14,9 +14,11 @@ B.A.T.M.A.N. Advanced relies on an Ethernet substrate. To run B.A.T.M.A.N. Advan
 
 The eoax module requires some changes to the kernel AX.25 layer in order to compile and run. These changes affect the way AX.25 handles outgoing and incoming UI frames with unknown PIDs, and are included as a patch to kernel sources.
 
-The following have been tested on Ubuntu 14.04.3 LTS and 15.10 and may require changes for other Linux distributions.
+The following is what I do to test the software. It is by no means a "proper" installation method, but rather a quick-and-dirty way to build and run the kernel module. Use at your own risk. The steps have been tested on Ubuntu 14.04.3 LTS and 15.10 and may require changes for other Linux distributions.
 
 **Note that the name of the kernel source folder is different for different Ubuntu versions, as is the corresponding patch.**
+
+I assume you have cloned this repository in `~/eoax`.
 
 * Download and install kernel build tools and sources:
 
