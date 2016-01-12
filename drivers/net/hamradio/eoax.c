@@ -410,7 +410,7 @@ static int eoax_device_event(struct notifier_block *this,
 
 static int __init eoax_init_driver(void)
 {
-	printk(KERN_INFO "eoax: Ethernet over AX.25 emulation\n");
+	printk(KERN_INFO "eoax: Ethernet over AX.25 encapsulation\n");
 
 	ax25_register_pid(&eoax_pid);
 
@@ -436,7 +436,7 @@ static void __exit eoax_cleanup_driver(void)
 }
 
 MODULE_AUTHOR("Antony Chazapis SV1OAN <chazapis@gmail.com>");
-MODULE_DESCRIPTION("Ethernet over AX.25 emulation");
+MODULE_DESCRIPTION("Ethernet over AX.25 encapsulation");
 MODULE_LICENSE("GPL");
 
 module_init(eoax_init_driver);
