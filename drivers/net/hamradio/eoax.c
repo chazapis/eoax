@@ -321,7 +321,7 @@ static int eoax_new_device(struct net_device *axdev)
 	struct net_device *ndev;
 	struct eoaxdev *eoax;
 
-	ndev = alloc_netdev(sizeof(struct eoaxdev), "dummy%d", NET_NAME_UNKNOWN, eoax_setup);
+	ndev = alloc_netdev(sizeof(struct eoaxdev), "eoax%d", NET_NAME_UNKNOWN, eoax_setup);
 	if (!ndev)
 		return -ENOMEM;
 
