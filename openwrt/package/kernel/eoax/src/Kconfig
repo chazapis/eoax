@@ -1,0 +1,2 @@
+config EOAX
+	tristate "Ethernet over AX.25 encapsulation"
